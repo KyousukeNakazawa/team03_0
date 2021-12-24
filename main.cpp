@@ -44,15 +44,26 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	// 1ループ(フレーム)前のキーボード情報
 	char oldkeys[256] = { 0 };
 
+	//マウス情報
+	int mouseX;
+	int mouseY;
+	int mouse = 1;
+	int oldMouse;
+
 	// ゲームループ
 	while (true) {
 		// 最新のキーボード情報だったものは1フレーム前のキーボード情報として保存
 		for (int i = 0; i < 256; ++i) {
 			oldkeys[i] = keys[i];
 		}
+		oldMouse = mouse;
 
 		// 最新のキーボード情報を取得
 		GetHitKeyStateAll(keys);
+
+		GetMousePoint(&mouseX, &mouseY);
+
+		int mouse = GetMouseInput();
 
 		// 画面クリア
 		ClearDrawScreen();
@@ -60,14 +71,13 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 		// 更新処理
 
-		player.Option(keys, oldkeys);
+		player.Option(keys, oldkeys, mouse, mouseX, mouseY);
 
 		// 描画処理
-		player.Draw();
+		player.Draw(keys, oldkeys, mouse, mouseX, mouseY);
 
-		//DrawBox(200, WIN_HEIGHT - 128, 200 + 64, WIN_HEIGHT, 0xffffff, true);	//64*128
-		//DrawBox(350, WIN_HEIGHT - 192, 350 + 96, WIN_HEIGHT, 0xffffff, true);	//96*192
-		//DrawBox(50, WIN_HEIGHT - 96, 50 + 48, WIN_HEIGHT, 0xffffff, true);	//48*96
+		//確認
+		//DrawFormatString(0, 0, 0xffffff, "%d", mouseX);
 
 		//---------  ここまでにプログラムを記述  ---------//
 		// (ダブルバッファ)裏面
