@@ -1,9 +1,10 @@
 #include "DxLib.h"
 #include "screen.h"
 #include "player.h"
+#include "enum.h"
 
 // ウィンドウのタイトルに表示する文字列
-const char TITLE[] = "";
+const char WIN_TITLE[] = "";
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine,
 	_In_ int nCmdShow) {
@@ -15,7 +16,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	SetWindowSizeChangeEnableFlag(FALSE, FALSE);
 
 	// タイトルを変更
-	SetMainWindowText(TITLE);
+	SetMainWindowText(WIN_TITLE);
 
 	// 画面サイズの最大サイズ、カラービット数を設定(モニターの解像度に合わせる)
 	SetGraphMode(WIN_WIDTH, WIN_HEIGHT, 32);
@@ -36,7 +37,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 
 	// ゲームループで使う変数の宣言
+	int scene = STAGE;
+
 	Player player;
+	Screen screen;
 
 	// 最新のキーボード情報用
 	char keys[256] = { 0 };
@@ -47,7 +51,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	//マウス情報
 	int mouseX;
 	int mouseY;
-	int mouse = 1;
+	int mouse = 0;
 	int oldMouse;
 
 	// ゲームループ
@@ -70,11 +74,27 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		//---------  ここからプログラムを記述  ----------//
 
 		// 更新処理
+		switch (scene) {
+		case TITLE:
 
-		player.Option(keys, oldkeys, mouse, mouseX, mouseY);
+			break;
+		case STAGE:
+			player.Option(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
 
-		// 描画処理
-		player.Draw(keys, oldkeys, mouse, mouseX, mouseY);
+			//描画
+			screen.Background(player.scrollX);
+
+			screen.ScoreDraw(player.scrollX, player.score);
+
+			player.Draw(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
+
+			break;
+		case STAGEHOME:
+
+			break;
+		}
+
+		
 
 		//確認
 		//DrawFormatString(0, 0, 0xffffff, "%d", mouseX);
