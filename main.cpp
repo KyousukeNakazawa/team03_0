@@ -2,6 +2,9 @@
 #include "screen.h"
 #include "player.h"
 #include "enum.h"
+#include "score.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 // ウィンドウのタイトルに表示する文字列
 const char WIN_TITLE[] = "";
@@ -25,7 +28,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	SetWindowSizeExtendRate(1.0);
 
 	// 画面の背景色を設定する
-	SetBackgroundColor(0x00, 0x00, 0x00);
+	SetBackgroundColor(0x00, 0x00, 0xff);
 
 	// DXlibの初期化
 	if (DxLib_Init() == -1) { return -1; }
@@ -35,12 +38,19 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 	// 画像などのリソースデータの変数宣言と読み込み
 
-
 	// ゲームループで使う変数の宣言
-	int scene = STAGE;
+	int scene = TITLE;
+	int stage = TUTORIAL;
+
+	const int gameTime = 60 * 100;
+	int gameTimer = gameTime;
+
+	bool reset = true;
 
 	Player player;
 	Screen screen;
+	Score score;
+
 
 	// 最新のキーボード情報用
 	char keys[256] = { 0 };
@@ -76,25 +86,64 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		// 更新処理
 		switch (scene) {
 		case TITLE:
+			//ゲーム情報のリセット処理
+			if (reset) {
+				player.Reset();
+				gameTimer = gameTime;
+				reset = false;
+				stage = TUTORIAL;
+			}
+
+			//ステージ選択
+			//上
+			if (keys[KEY_INPUT_UP] && !oldkeys[KEY_INPUT_UP]) {
+				stage--;
+				if (stage <= TUTORIAL) stage = TUTORIAL;
+			}
+
+			//下
+			if (keys[KEY_INPUT_DOWN] && !oldkeys[KEY_INPUT_DOWN]) {
+				stage++;
+				if (stage >= GAME) stage = GAME;
+			}
+
+			if (keys[KEY_INPUT_SPACE] && !oldkeys[KEY_INPUT_SPACE]) {
+				if (stage == TUTORIAL) scene = TUTORIAL;
+				else if (stage == GAME) scene = GAME;
+			}
+
+			DrawFormatString(0, 0, 0xffffff, "title");
+			DrawFormatString(0, 15, 0xffffff, "%d", stage);
+			break;
+		case TUTORIAL:
 
 			break;
-		case STAGE:
+		case GAME:
 			player.Option(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
 
-			//描画
-			screen.Background(player.scrollX);
+			gameTimer--;
+			if (gameTimer < 0) scene = SCORE;
 
-			screen.ScoreDraw(player.scrollX, player.score);
+			//描画
+			screen.Background(player.scrollX, player.scrollY);
 
 			player.Draw(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
 
-			break;
-		case STAGEHOME:
+			screen.ScoreDraw(player.score);
 
+			screen.TimerDraw(gameTimer);
+
+			break;
+		case SCORE:
+			//ゲームが終了したらリセットフラグを立てる
+			score.Ranking(player.score);
+
+			reset = true;
+			if (keys[KEY_INPUT_SPACE] && !oldkeys[KEY_INPUT_SPACE]) scene = TITLE;
+
+			DrawFormatString(0, 0, 0xffffff, "score");
 			break;
 		}
-
-		
 
 		//確認
 		//DrawFormatString(0, 0, 0xffffff, "%d", mouseX);

@@ -7,7 +7,9 @@ const int WIN_WIDTH = 1280;
 // ウィンドウ縦幅
 const int WIN_HEIGHT = 800;
 
-const int WOR_WIDTH = 3840;
+const int WOR_WIDTH = 2560;
+
+const int WOR_HEIGHT = 1400;
 
 //オブジェクト基本情報
 struct TransForm {
@@ -26,15 +28,26 @@ struct Object
 	float speed;
 };
 
-int Scroll(float& playerPos, float& speed, const float scrollStart);
+float ScrollX(float& playerPos, const float scrollStart);
+float ScrollY(float& playerPos, const float scrollStart);
 
 class Screen {
 private:
 	float backX;
 	float backY;
 	
+	//数字画像化用
+	const int scoreDigits = 6;
+	char scoreStrNum[6];
+	int scoreEachNum[6];
+
+	const int timerDigits = 4;
+	char timerStrNum[4];
+	int timerEachNum[4];
 
 	int backGH;
+	int scoreGH[10];
+	int timerGH[10];
 
 public:
 	
@@ -42,8 +55,9 @@ public:
 	Screen();
 	~Screen();
 
-	void Background(int scrollX);
-	void ScoreDraw(int scrollX, int score);
+	void Background(float scrollX, float scrollY);
+	void ScoreDraw(int score);
+	void TimerDraw(int timer);
 };
 
 class HUD {
@@ -62,6 +76,7 @@ private:
 	//ホットバー
 	const int minInvent = 4;
 	const int maxInvent = 6;
+	bool inventUpdate;
 	TransForm invent;
 
 
@@ -84,5 +99,5 @@ public:
 	~HUD();
 	void Craft(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
 	void Inventory(int& mouse, int& mouseX, int& mouseY);
-
+	void Reset();
 };

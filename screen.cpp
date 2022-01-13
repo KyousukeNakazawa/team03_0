@@ -2,9 +2,9 @@
 #include "screen.h"
 #include "enum.h"
 
-int Scroll(float& playerPos, float& speed, const float scrollStart) {
+float ScrollX(float& playerPos, const float scrollStart) {
 	if (playerPos > WOR_WIDTH - scrollStart) {
-		return WIN_WIDTH * 2;
+		return WOR_WIDTH - scrollStart * 2;
 	}
 	else if (playerPos < scrollStart) {
 		return 0;
@@ -14,23 +14,68 @@ int Scroll(float& playerPos, float& speed, const float scrollStart) {
 	}
 }
 
+float ScrollY(float& playerPos, const float scrollStart) {
+	if (playerPos < scrollStart) {
+		return 0;
+	}
+	else if (playerPos > WOR_HEIGHT - scrollStart) {
+		return 600;
+	}
+	else {
+		return playerPos - scrollStart;
+	}
+}
+
+
 Screen::Screen() {
 	backX = 0;
 	backY = 0;
+	
+	for (int i = 0; i < scoreDigits; i++) {
+		scoreStrNum[i] = {};
+		scoreEachNum[i] = {};
+	}
+
+	for (int i = 0; i < timerDigits; i++) {
+		timerStrNum[i] = {};
+		timerEachNum[i] = {};
+	}
 
 	backGH = LoadGraph("resource/pict/background.png");
+	LoadDivGraph("resource/pict/scorenum.png", 10, 10, 1, 48, 48, scoreGH);
+	LoadDivGraph("resource/pict/timenum.png", 10, 10, 1, 48, 48, timerGH);
 }
 
 Screen::~Screen() {
 
 }
-void Screen::Background(int scrollX) {
-	DrawGraph(backX - scrollX, backY, backGH, true);
+void Screen::Background(float scrollX, float scrollY) {
+	DrawGraph(backX - scrollX, backY - scrollY, backGH, true);
 }
 
-void Screen::ScoreDraw(int scrollX, int score) {
-	//DrawGraph();
-	DrawFormatString(1200, 0, 0xffffff, "%d", score);
+void Screen::ScoreDraw(int score) {
+	//配列に格納
+	sprintf_s(scoreStrNum, sizeof(scoreStrNum), "%05d", score);
+
+	//オフセット値に合わせる
+	for (int i = 0; i < scoreDigits; i++) {
+		scoreEachNum[i] = scoreStrNum[i] - 48;
+	}
+
+	//描画
+	for(int i = 0; i < scoreDigits; i++) DrawGraph(1024 + i * 48, 20, scoreGH[scoreEachNum[i]], true);
+	//DrawFormatString(1150, 0, 0xffffff, "%d", score);
+}
+
+void Screen::TimerDraw(int timer) {
+	//配列に格納
+	sprintf_s(timerStrNum, sizeof(timerStrNum), "%03d", timer / 60);
+
+	//オフセット値に合わせる
+	for (int i = 0; i < timerDigits; i++) {
+		timerEachNum[i] = timerStrNum[i] - 48;
+	}
+	for (int i = 0; i < timerDigits; i++) DrawGraph(608 + i * 48, 20, timerGH[timerEachNum[i]], true);
 }
 
 HUD::HUD() {
@@ -58,6 +103,8 @@ HUD::HUD() {
 		itemType[i] = NONE;
 	}
 
+	inventUpdate = false;
+
 	LoadDivGraph("resource/pict/inventory.png", 2, 2, 1, 96, 96, inventGH);
 	LoadDivGraph("resource/pict/gomi/gomi1.png", 8, 4, 4, 64, 64, gomi1GH);
 	LoadDivGraph("resource/pict/gomi/gomi2.png", 3, 3, 1, 32, 96, gomi2GH);
@@ -71,6 +118,34 @@ HUD::HUD() {
 
 HUD::~HUD() {
 
+}
+
+void HUD::Reset() {
+	craftmenu.sizeX = 384;
+	craftmenu.sizeY = 250;
+	craftmenu.x = 20;
+	craftmenu.y = 150;
+	craftmenuFlag = false;
+
+	craftSizeX = 384;
+	craftSizeY = 64;
+	for (int i = 0; i < craftCategory; i++) {
+		craftX[i] = craftmenu.x;
+		craftY[i] = craftmenu.y + 15 + ((craftSizeY + 10) * i);
+	}
+
+	invent.x = 20;
+	invent.y = 20;
+	invent.sizeX = 96;
+	invent.sizeY = 96;
+	inventNum = minInvent;
+
+	for (int i = 0; i < maxInvent; i++) {
+		onHandFlag[i] = false;
+		itemType[i] = NONE;
+	}
+
+	inventUpdate = false;
 }
 
 void HUD::Craft(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY) {
@@ -122,7 +197,7 @@ void HUD::Craft(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouse
 		}
 		for (int i = 0; i < inventNum; i++) {
 			//バック
-			if (itemType[i] == BACK) {
+			if (inventNum == 6) {
 				backCraftCheck = 0;
 				break;
 			}
@@ -161,6 +236,23 @@ void HUD::Craft(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouse
 					}
 				}
 			}
+			//バック
+			//モップ
+			if (craftFlag[2] && backCraftCheck >= 2) {
+				for (int i = 0; i < inventNum; i++) {
+					if (itemType[i] == NUNO) {
+						itemType[i] = NONE;
+						break;
+					}
+				}
+				for (int i = 0; i < inventNum; i++) {
+					if (itemType[i] == WAGOMU) {
+						itemType[i] = NONE;
+						break;
+					}
+				}
+				inventUpdate = true;
+			}
 		}
 	}
 
@@ -177,6 +269,10 @@ void HUD::Inventory(int& mouse, int& mouseX, int& mouseY) {
 	int invGH[6] = {};
 	int item1GH[6] = {};	//64*64の絵
 	int item2GH[6] = {};	//32*64の絵
+
+	//バックが作成されたらホットバーが6つに増加
+	if (inventUpdate) inventNum = maxInvent;
+	else inventNum = minInvent;
 
 	//ホットバーの表示 クリックで持つアイテムを選択
 	for (int i = 0; i < inventNum; i++) {
@@ -222,7 +318,7 @@ void HUD::Inventory(int& mouse, int& mouseX, int& mouseY) {
 
 		//アイテムアイコン
 		//普通のゴミ
-		DrawExtendGraph(invent.x + invent.sizeX * i, invent.y, invent.x + invent.sizeX * (i + 1), invent.y + invent.sizeY, item1GH[i], true);
+		DrawExtendGraph(invent.x + 4 + invent.sizeX * i, invent.y + 4, invent.x + (invent.sizeX - 4) * (i + 1), invent.y + invent.sizeY - 4, item1GH[i], true);
 		//細長いアイテム
 		DrawGraph(invent.x + 32 + invent.sizeX * i, invent.y, item2GH[i], true);
 	}

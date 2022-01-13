@@ -9,6 +9,9 @@ public:
 	TransForm player;
 	float spdX;
 	float spdY;
+	int cleanTimer;
+	const int cleanTime = 150;
+	bool fallFlag;
 
 	int playerGH;
 
@@ -17,6 +20,7 @@ public:
 
 	//スクロール
 	const int scrollStartX = 640;
+	const int scrollStartY = 400;
 
 	//重力
 	const float grv = 0.3f;
@@ -32,8 +36,9 @@ public:
 
 	void ItemGet(char* keys, char* oldkeys);
 	void ItemDrop(char* keys, char* oldkeys);
-	void ItemCraft(char* keys, char* oldkeys);
+	void Cleaning(char* keys, char* oldkeys);
 	void ItemTrash(char* keys, char* oldkeys);
+	void PlayerFall();
 
 public:
 	//スクロール
@@ -43,6 +48,9 @@ public:
 	Player();
 	~Player();
 
+	void Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
 	void Option(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
 	void Draw(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
+
+	void Reset();
 };

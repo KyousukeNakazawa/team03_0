@@ -3,9 +3,11 @@
 
 enum Scene {
 	TITLE,
-	STAGE,
-	STAGEHOME,
+	TUTORIAL,
+	GAME,
+	SCORE,
 };
+
 
 enum HandInfo {
 	off_hand,
@@ -34,4 +36,5 @@ enum ItemInfo {
 	HOUKI,		//12
 	MOP,		//13
 	BACK,		//14
+	BALL		//15
 };
