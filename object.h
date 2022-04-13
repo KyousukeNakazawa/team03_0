@@ -8,6 +8,7 @@ private:
 	int kitchenGH;
 	int tableGH;
 	int chairGH;
+	int boxGH;
 
 public:
 	TransForm trashBox;
@@ -15,6 +16,8 @@ public:
 	TransForm table;
 	TransForm chair;
 	int chairGraphY;
+	TransForm box[3];
+	const int boxNum = 3;
 
 	Obj();
 
@@ -22,4 +25,5 @@ public:
 	void KitchenDraw(float scrollX, float scrollY);
 	void TableDraw(float scrollX, float scrollY);
 	void ChairDraw(float scrollX, float scrollY);
+	void BoxDraw(float scrollX, float scrollY);
 };

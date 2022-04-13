@@ -13,6 +13,9 @@ private:
 
 	const int digits = 6;
 
+	char strNumSave[6] = { 0 };
+	int eachNumSave[6] = { 0 };
+
 	char strNumSave1[6] = { 0 };
 	int eachNumSave1[6] = { 0 };
 
@@ -23,6 +26,12 @@ private:
 	int eachNumSave3[6] = { 0 };
 
 	int numberGH[10];
+	int backGH;
+	int backX;
+	int backY;
+
+	TransForm scoreNum;
+
 
 public:
 	Score();

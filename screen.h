@@ -28,36 +28,69 @@ struct Object
 	float speed;
 };
 
+//アニメーション用
+struct AniGHTimer {
+	const int GHNum;
+	const int GHTime;
+	int GHTimer;
+};
+
 float ScrollX(float& playerPos, const float scrollStart);
 float ScrollY(float& playerPos, const float scrollStart);
 
+void AniStop(AniGHTimer& Ani, int time);
+
 class Screen {
 private:
+	//背景
 	float backX;
 	float backY;
+	int backGH;
+
+	//ロード画面
+	float loadX;
+	float loadY;
+	int loading[4];
+	int loading2[4];
+	AniGHTimer load = { 4, 120, 0 };
 	
 	//数字画像化用
 	const int scoreDigits = 6;
 	char scoreStrNum[6];
 	int scoreEachNum[6];
 
-	const int timerDigits = 4;
+	const int timerDigits = 3;
 	char timerStrNum[4];
 	int timerEachNum[4];
 
-	int backGH;
 	int scoreGH[10];
 	int timerGH[10];
 
-public:
+	//操作説明アニメーション
 	
+	int optionAni1[9];
+	int optionAni2[9];
+	int optionAni3[8];
+	int optionAni4[12];
+	int optionAni5[2];
+	int optionAni6[3];
+	int optionAni7[2];
+	int optionAni8[4];
+	AniGHTimer optionAni = { 12, 180, 0 };
+
+	
+
+public:
+	int tutorialScene;
 
 	Screen();
 	~Screen();
 
+	void Load(int& scene, int stage);
 	void Background(float scrollX, float scrollY);
 	void ScoreDraw(int score);
 	void TimerDraw(int timer);
+	void TutorialAniGH(char* keys, char* oldkeys);
 };
 
 class HUD {
@@ -78,6 +111,8 @@ private:
 	const int maxInvent = 6;
 	bool inventUpdate;
 	TransForm invent;
+	int invSelect;
+	int craftSelect;
 
 
 	int inventGH[2];
@@ -87,7 +122,8 @@ private:
 	int tool2GH[2];
 	int houkicraftGH[2];
 	int mopcraftGH[2];
-	int backcraftGH[2];
+	int backcraftGH[3];
+	int craftBack;
 
 public:
 	int inventNum;
@@ -97,7 +133,7 @@ public:
 
 	HUD();
 	~HUD();
-	void Craft(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
-	void Inventory(int& mouse, int& mouseX, int& mouseY);
+	void Craft(char* keys, char* oldkeys);
+	void Inventory(char* keys, char* oldkeys);
 	void Reset();
 };

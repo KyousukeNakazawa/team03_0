@@ -25,10 +25,22 @@ Obj::Obj() {
 	chair.y = WOR_HEIGHT - chair.sizeY;
 	chairGraphY = 300;
 
+	for (int i = 0; i < boxNum; i++) {
+		box[i].sizeX = 128;
+		box[i].sizeY = 128;
+	}
+	box[0].x = 600;
+	box[0].y = WOR_HEIGHT - box[0].sizeY;
+	box[1].x = 1350;
+	box[1].y = WOR_HEIGHT - box[1].sizeY;
+	box[2].x = 2350;
+	box[2].y = WOR_HEIGHT - box[2].sizeY;
+
 	trashBoxGH = LoadGraph("resource/pict/object/gomibako.png");
 	kitchenGH = LoadGraph("resource/pict/object/kitchen.png");
 	tableGH = LoadGraph("resource/pict/object/table.png");
 	chairGH = LoadGraph("resource/pict/object/chair.png");
+	boxGH = LoadGraph("resource/pict/object/smollbox2.png");
 }
 
 void Obj::TrashBoxDraw(float scrollX, float scrollY) {
@@ -45,4 +57,10 @@ void Obj::TableDraw(float scrollX, float scrollY) {
 
 void Obj::ChairDraw(float scrollX, float scrollY) {
 	DrawGraph(chair.x - scrollX, chairGraphY - scrollY, chairGH, true);
+}
+
+void Obj::BoxDraw(float scrollX, float scrollY) {
+	for (int i = 0; i < boxNum; i++) {
+		DrawGraph(box[i].x - scrollX, box[i].y - scrollY, boxGH, true);
+	}
 }

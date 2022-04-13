@@ -6,6 +6,7 @@ enum Scene {
 	TUTORIAL,
 	GAME,
 	SCORE,
+	LOAD,
 };
 
 
@@ -36,5 +37,5 @@ enum ItemInfo {
 	HOUKI,		//12
 	MOP,		//13
 	BACK,		//14
-	BALL		//15
+	BALL,		//15
 };

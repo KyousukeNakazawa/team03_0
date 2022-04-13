@@ -45,10 +45,11 @@ public:
 	Item();
 	~Item();
 
-
+	void Tutorial(int scene);
 	void GomiUpdate();
 	void GomiDraw(float scrollX, float scrollY);
 
 
 	void Reset();
+	void Spawn();
 };

@@ -50,13 +50,34 @@ bool ObjLegsDecision(TransForm& player, TransForm& obj) {
 	float cx2 = obj.x + obj.sizeX;
 	float cy2 = obj.y + obj.sizeY;
 
-	return bx1 <= ax2 && ax1 <= bx2 && by1 <= ay2 && ay1 <= by2 ||
-		cx1 <= ax2 && ax1 <= cx2 && cy1 <= ay2 && ay1 <= cy2;
+	return (bx1 <= ax2 && ax1 <= bx2 && by1 <= ay2 && ay1 <= by2) ||
+		(cx1 <= ax2 && ax1 <= cx2 && cy1 <= ay2 && ay1 <= cy2);
 }
 
-void ObjDropBlock(TransForm& player, TransForm& obj) {
-	if (player.x <= obj.x) player.x = obj.x;
-	else if (player.x >= obj.x + obj.sizeX - player.sizeX) player.x = obj.x + obj.sizeX - player.sizeX;
+bool ObjectCollision(TransForm player, TransForm obj) {
+	float ax1 = player.x + 6;
+	float ax2 = player.x + player.sizeX - 6;
+
+	float bx1 = obj.x;
+	float bx2 = obj.x + obj.sizeX;
+
+	return ax1 >= bx1 && ax2 <= bx2;
+}
+
+bool ObjectLegsCollision(TransForm player, TransForm obj) {
+	float ax1 = player.x + 6;
+	float ax2 = player.x + player.sizeX - 6;
+
+	//左脚
+	float bx1 = obj.x;
+	float bx2 = obj.x + 96;
+
+	//右脚
+	float cx1 = obj.x + obj.sizeX - 96;
+	float cx2 = obj.x + obj.sizeX;
+
+	return (ax1 >= bx1 && ax2 <= bx2) ||
+		(ax1 >= cx1 && ax2 <= cx2);
 }
 
 Player::Player() {
@@ -67,26 +88,52 @@ Player::Player() {
 	spdX = 5;
 	spdY = 7;
 	fallFlag = false;
-	cleanTimer = 0;
+	hideFlag = false;
 	menu = new HUD;
 	item = new Item;
 	object = new Obj;
+	enemy = new Enemy;
 
 	scrollX = 0;
 	scrollY = 600;
 
 	score = 0;
 
-	playerGH = LoadGraph("resource/pict/player.png");
+	spawnType = 0;
+	spawnFlag = true;
+
+	LoadDivGraph("resource/pict/player/playermoveright.png", 4, 4, 1, 64, 128, playerRightGH);
+	LoadDivGraph("resource/pict/player/playermoveleft.png", 4, 4, 1, 64, 128, playerLeftGH);
+	LoadDivGraph("resource/pict/player/playerfallright.png", 4, 4, 1, 64, 192, playerFallRightGH);
+	LoadDivGraph("resource/pict/player/playerfallleft.png", 4, 4, 1, 64, 192, playerFallLeftGH);
+	LoadDivGraph("resource/pict/player/playerclimb.png", 4, 4, 1, 64, 128, playerClimbGH);
+	LoadDivGraph("resource/pict/player/playerhouki.png", 4, 4, 1, 64, 128, playerHoukiGH);
+	LoadDivGraph("resource/pict/player/playermop.png", 4, 4, 1, 64, 128, playerMopGH);
+	LoadDivGraph("resource/pict/player/playerwait.png", 4, 4, 1, 64, 128, playerWaitGH);
+	//playerGH = LoadGraph("resource/pict/player.png");
+
+	walkSE = LoadSoundMem("resource/sound/playerwalk.mp3");	//プレイヤーの歩く音
+	ChangeVolumeSoundMem(100, walkSE);
+	houkiSE = LoadSoundMem("resource/sound/houki.mp3");
+	ChangeVolumeSoundMem(100, houkiSE);
+	mopSE = LoadSoundMem("resource/sound/mop.mp3");
+	ChangeVolumeSoundMem(100, mopSE);
+	trashPointSE = LoadSoundMem("resource/sound/trashpoint.mp3");
+	ChangeVolumeSoundMem(100, trashPointSE);
+	cleanPointSE = LoadSoundMem("resource/sound/cleanpoint.mp3");
+	ChangeVolumeSoundMem(100, cleanPointSE);
+	climbSE = LoadSoundMem("resource/sound/climb.mp3");
+	ChangeVolumeSoundMem(100, climbSE);
 }
 
 Player::~Player() {
 	if (menu != NULL) delete menu;
 	if (item != NULL) delete item;
 	if (object != NULL) delete object;
+	if (enemy != NULL) delete enemy;
 }
 
-void Player::Reset() {
+void Player::Reset(int scene) {
 	menu->Reset();
 	item->Reset();
 	player.sizeX = 64;
@@ -94,14 +141,22 @@ void Player::Reset() {
 	player.x = 150;
 	player.y = WOR_HEIGHT - player.sizeY;
 	spdX = 5;
-	spdY = 5;
+	spdY = 7;
 	fallFlag = false;
-	cleanTimer = 0;
 
 	scrollX = 0;
-	scrollY = 0;
+	scrollY = 600;
 
 	score = 0;
+	spawnType = 0;
+	spawnFlag = true;
+
+
+	enemy->roomba.x = WIN_WIDTH * 1.5;
+	enemy->hitFlag = false;
+
+	//ゲーム画面なら初期スポーン処理
+	if (scene == GAME) item->Spawn();
 }
 
 void Player::ItemGet(char* keys, char* oldkeys) {
@@ -217,6 +272,12 @@ void Player::ItemDrop(char* keys, char* oldkeys) {
 
 //ゴミをきれいにする
 void Player::Cleaning(char* keys, char* oldkeys) {
+	//きれいにするために必要な時間
+	const int houkiTime = 50;
+	static int houkiTimer = 0;
+	const int mopTime = 100;
+	static int mopTimer = 0;
+
 	for (int i = 0; i < item->gomi1Num; i++) {
 		for (int j = 0; j < menu->inventNum; j++) {
 			//ゴミの上で特定のアイテムを持っていればきれいにできる
@@ -224,36 +285,39 @@ void Player::Cleaning(char* keys, char* oldkeys) {
 				menu->onHandFlag[j] && keys[KEY_INPUT_SPACE] && oldkeys[KEY_INPUT_SPACE]) {
 				//食べかすの上でほうき
 				if (item->gomi1Type[i] == TABEKASU && menu->itemType[j] == HOUKI) {
-					cleanTimer++;
-					item->blendNum--;
+					houkiTimer++;
+					item->blendNum -= 2;
 					item->cleanFlag[i] = true;
 					//一定時間spaceを押し続けたらゴミが消えスコアゲット
-					if (cleanTimer >= cleanTime) {
-						score += 2;
+					if (houkiTimer >= houkiTime) {
+						score += 10;
 						item->gomi1Type[i] = NONE;
 						item->gomi1X[i] = -500;
-						cleanTimer = 0;
+						houkiTimer = 0;
+						PlaySoundMem(cleanPointSE, DX_PLAYTYPE_BACK, true);
 						break;
 					}
 				}
 				//油の上でモップ
 				else if (item->gomi1Type[i] == ABURA && menu->itemType[j] == MOP) {
-					cleanTimer++;
+					mopTimer++;
 					item->blendNum--;
 					item->cleanFlag[i] = true;
 					//一定時間spaceを押し続けたらゴミが消えスコアゲット
-					if (cleanTimer >= cleanTime) {
-						score += 2;
+					if (mopTimer >= mopTime) {
+						score += 10;
 						item->gomi1Type[i] = NONE;
 						item->gomi1X[i] = -500;
-						cleanTimer = 0;
+						mopTimer = 0;
+						PlaySoundMem(cleanPointSE, DX_PLAYTYPE_BACK, true);
 						break;
 					}
 				}
 			}
 			//一度離したらリセット
 			else if (!keys[KEY_INPUT_SPACE] && oldkeys[KEY_INPUT_SPACE]) {
-				cleanTimer = 0;
+				houkiTimer = 0;
+				mopTimer = 0;
 				item->blendNum = 255;
 				item->cleanFlag[i] = false;
 			}
@@ -266,8 +330,10 @@ void Player::ItemTrash(char* keys, char* oldkeys) {
 	for (int i = 0; i < menu->inventNum; i++) {
 		if (menu->onHandFlag[i] && keys[KEY_INPUT_F] && !oldkeys[KEY_INPUT_F] &&
 			TrashBoxCollision(player, object->trashBox) && menu->itemType[i] >= HOKORI && menu->itemType[i] <= TUMAYOUZI) {
-			score++;
+			score += 3;
 			menu->itemType[i] = NONE;
+			PlaySoundMem(trashPointSE, DX_PLAYTYPE_BACK, true);
+			break;
 		}
 	}
 }
@@ -291,9 +357,11 @@ void Player::PlayerFall() {
 	}
 }
 
-void Player::Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY) {
+//チュートリアル
+void Player::Tutorial(char* keys, char* oldkeys, int& tutorialScene) {
 	player.x += ((float)(keys[KEY_INPUT_D]) - (float)(keys[KEY_INPUT_A])) * spdX;
 
+	//落下処理
 	PlayerFall();
 
 	//オブジェクトの脚に触れていたら登れる
@@ -304,7 +372,7 @@ void Player::Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int&
 
 	//画面外に出ない
 	if (player.x <= 0) player.x = 0;
-	else if (player.x >= WOR_WIDTH - player.sizeX) player.x = WOR_WIDTH - player.sizeX;
+	else if (player.x >= WIN_WIDTH - player.sizeX) player.x = WIN_WIDTH - player.sizeX;
 
 
 	if (player.y >= WOR_HEIGHT - player.sizeY) player.y = WOR_HEIGHT - player.sizeY;
@@ -315,15 +383,28 @@ void Player::Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int&
 		if (player.y <= object->table.y - player.sizeY) player.y = object->table.y - player.sizeY + 1;
 	}
 
-	//椅子
-	else if (player.x + player.sizeX >= object->chair.x && player.x <= object->chair.x + object->chair.sizeX) {
-		if (!fallFlag && player.y <= object->chair.y - player.sizeY) player.y = object->chair.y - player.sizeY + 1;
-	}
+	////椅子
+	//else if (player.x + player.sizeX >= object->chair.x && player.x <= object->chair.x + object->chair.sizeX) {
+	//	if (!fallFlag && player.y <= object->chair.y - player.sizeY) player.y = object->chair.y - player.sizeY + 1;
+	//}
 
 
 	//スクロール
-	scrollX = ScrollX(player.x, scrollStartX);
+	//scrollX = ScrollX(player.x, scrollStartX);
 	scrollY = ScrollY(player.y, scrollStartY);
+
+	//プレイヤーの進行度に合わあせてゴミが出現
+	if (spawnFlag) {
+		item->Tutorial(spawnType);
+		spawnFlag = false;
+	}
+
+	//ゴミを拾ってゴミ箱に捨てたら次の説明
+	if (spawnType == 0 && (score == 9 || tutorialScene == 4)) {
+		spawnType = 1;
+		spawnFlag = true;
+		tutorialScene++;
+	}
 
 	//アイテムの取得
 	ItemGet(keys, oldkeys);
@@ -335,11 +416,32 @@ void Player::Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int&
 
 	//アイテムをゴミ箱に捨てる
 	ItemTrash(keys, oldkeys);
+
+
+	//描画
+
+	//テーブル
+	object->TableDraw(scrollX, scrollY);
+
+	//ゴミ箱
+	object->TrashBoxDraw(scrollX, scrollY);
+
+	//プレイヤー
+	PlayerAniGH(keys, oldkeys);
+
+	//ゴミ
+	item->GomiDraw(scrollX, scrollY);
+
+	//HUD
+	menu->Craft(keys, oldkeys);
+	menu->Inventory(keys, oldkeys);
 }
 
-void Player::Option(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY) {
+
+void Player::Option(char* keys, char* oldkeys, int& scene) {
 	player.x += ((float)(keys[KEY_INPUT_D]) - (float)(keys[KEY_INPUT_A])) * spdX;
 
+	//落下処理
 	PlayerFall();
 
 	//オブジェクトの脚に触れていたら登れる
@@ -366,6 +468,31 @@ void Player::Option(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& m
 		if (!fallFlag && player.y <= object->chair.y - player.sizeY) player.y = object->chair.y - player.sizeY + 1;
 	}
 
+	// 隠れていたらhideFlagをtrueにする
+		for (int i = 0; i < 3; i++)
+		{
+			if (player.y + player.sizeY == WOR_HEIGHT && ObjectCollision(player, object->box[i]))
+			{
+				hideFlag = true;
+				break;
+			}
+			else if (ObjectLegsCollision(player, object->chair))
+			{
+				hideFlag = true;
+				break;
+			}
+			else if (ObjectLegsCollision(player, object->table))
+			{
+				hideFlag = true;
+				break;
+			}
+			else if (ObjectCollision(player, object->kitchen))
+			{
+				hideFlag = true;
+				break;
+			}
+			else hideFlag = false;
+		}
 
 	//スクロール
 	scrollX = ScrollX(player.x, scrollStartX);
@@ -380,15 +507,30 @@ void Player::Option(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& m
 	//アイテム落とす
 	ItemDrop(keys, oldkeys);
 
+	//きれいにする
 	Cleaning(keys, oldkeys);
 
 	//アイテムをゴミ箱に捨てる
 	ItemTrash(keys, oldkeys);
+
+	//敵の処理
+	RoombaCollision(enemy->roomba);
+	enemy->EnemyTiming(scrollX, scrollY);
+	enemy->HumanSearchCollision(player.x, player.y, player.sizeX, player.sizeY, scrollX, scrollY, hideFlag);
+	if (enemy->hitFlag == true)scene = SCORE;
 }
 
-void Player::Draw(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY) {
+void Player::Draw(char* keys, char* oldkeys) {
+	//敵（人間）
+	if (enemy->humanFlag == true)enemy->HumanDraw(scrollX, scrollY);
+
+
 	//キッチン
 	object->KitchenDraw(scrollX, scrollY);
+
+	//敵（ルンバ）
+	if (enemy->roombaFlag == true)enemy->RoombaDraw(scrollX, scrollY);
+
 
 	//テーブル
 	object->TableDraw(scrollX, scrollY);
@@ -399,16 +541,143 @@ void Player::Draw(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mou
 	//ゴミ箱
 	object->TrashBoxDraw(scrollX, scrollY);
 
+	//隠れるためのオブジェクト
+	object->BoxDraw(scrollX, scrollY);
+
+	enemy->Warning();
+
 	//プレイヤー
-	DrawGraph(player.x - scrollX, player.y - scrollY, playerGH, true);
+	PlayerAniGH(keys, oldkeys);
 
 	//ゴミ
 	item->GomiDraw(scrollX, scrollY);
 
 	//HUD
-	menu->Craft(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
-	menu->Inventory(mouse, mouseX, mouseY);
+	menu->Craft(keys, oldkeys);
+	menu->Inventory(keys, oldkeys);
 
-	DrawFormatString(500, 0, 0xffffff, "%d", fallFlag);
-	DrawFormatString(530, 0, 0xffffff, "%f", player.y);
+	//DrawFormatString(500, 0, 0xffffff, "%d", enemy->hitFlag);
+	/*DrawFormatString(530, 0, 0xffffff, "%f", player.y);*/
+}
+
+//アニメーション処理
+void Player::PlayerAniGH(char* keys, char* oldkeys) {
+	int j = playerMove.GHTimer / (playerMove.GHTime / playerMove.GHNum);
+	static int GH;
+	static int oldGH;
+	int add = 0;
+
+	if ((keys[KEY_INPUT_W] || keys[KEY_INPUT_S]) && !fallFlag && (ObjLegsDecision(player, object->table) || ObjLegsDecision(player, object->chair))) {	//上り下り
+		playerMove.GHTimer++;
+		GH = playerClimbGH[j];
+	}
+	else if (keys[KEY_INPUT_D]) {	//右に移動中
+		playerMove.GHTimer++;
+		GH = playerRightGH[j];
+		if (fallFlag) {	//落下中
+			GH = playerFallRightGH[j];
+			oldGH = playerFallRightGH[j];
+			add = 64;
+		}
+	}
+	else if (keys[KEY_INPUT_A]) {	//左に移動中
+		playerMove.GHTimer++;
+		GH = playerLeftGH[j];
+		if (fallFlag) {	//落下中
+			GH = playerFallLeftGH[j];
+			oldGH = playerFallLeftGH[j];
+			add = 64;
+		}
+	}
+	else if (keys[KEY_INPUT_SPACE]) {	//掃除
+		playerMove.GHTimer++;
+		for (int i = 0; i < menu->inventNum; i++) {	//ほうきアニメーション
+			if (menu->onHandFlag[i] && menu->itemType[i] == HOUKI) {
+				GH = playerHoukiGH[j];
+				break;
+			}
+			else if (menu->onHandFlag[i] && menu->itemType[i] == MOP) {	//モップアニメーション
+				GH = playerMopGH[j];
+				break;
+			}
+			else {	//何も持っていないときは待機アニメーション
+				GH = playerWaitGH[j];
+			}
+		}
+	}
+	else {	//静止中
+		playerMove.GHTimer++;
+		GH = playerWaitGH[j];
+		if (fallFlag) {	//落下中
+			GH = oldGH;
+			add = 64;
+		}
+		else { //上り下り中かつ地面に足がついていないとき
+			if ((ObjLegsDecision(player, object->table) || ObjLegsDecision(player, object->chair)) && player.y != WOR_HEIGHT - player.sizeY &&
+				player.y != object->table.y - player.sizeY + 1 && player.y != object->chair.y - player.sizeY + 1) {
+				GH = playerClimbGH[j];
+			}
+		}
+	}
+
+	//アニメーションタイマーリセット
+	if (playerMove.GHTimer >= playerMove.GHTime) playerMove.GHTimer = 0;
+
+	DrawGraph(player.x - scrollX, player.y - scrollY - add, GH, true);
+}
+
+//プレイヤーとルンバの減速処理(当たり判定)
+void Player::RoombaCollision(Object roomba)
+{
+	if (enemy->roombaFlag)
+	{
+		if (player.x<roomba.x + roomba.width && player.x + player.sizeX>roomba.x &&
+			player.y<roomba.y + roomba.height && player.y + player.sizeY>roomba.y)//X,Yの判定
+		{
+			spdX = 3;
+		}
+		else
+		{
+			spdX = 5;
+		}
+	}
+
+}
+
+void Player::Sound(char* keys, char* oldkeys) {
+	//歩いている音
+	if ((keys[KEY_INPUT_D] || keys[KEY_INPUT_A]) && !fallFlag && (!keys[KEY_INPUT_W] && !keys[KEY_INPUT_S])) PlaySoundMem(walkSE, DX_PLAYTYPE_LOOP, false);
+	else StopSoundMem(walkSE);
+
+	//掃除する音
+	if (keys[KEY_INPUT_SPACE]) {
+		for (int i = 0; i < menu->inventNum; i++) {
+			if (menu->onHandFlag[i] && menu->itemType[i] == HOUKI) {	//ほうき
+				PlaySoundMem(houkiSE, DX_PLAYTYPE_LOOP, false);
+			}
+			else if (menu->onHandFlag[i] && menu->itemType[i] == MOP) {	//モップ
+				PlaySoundMem(mopSE, DX_PLAYTYPE_LOOP, false);
+				break;
+			}
+		}
+	}
+	else {
+		StopSoundMem(houkiSE);
+		StopSoundMem(mopSE);
+	}
+
+	//登る音
+	if ((keys[KEY_INPUT_W] || keys[KEY_INPUT_S]) && (ObjLegsDecision(player, object->table) || ObjLegsDecision(player, object->chair))) {
+		PlaySoundMem(climbSE, DX_PLAYTYPE_LOOP, false);
+	}
+	else {
+		StopSoundMem(climbSE);
+	}
+}
+
+void Player::SoundStop() {
+	StopSoundMem(walkSE);
+	StopSoundMem(houkiSE);
+	StopSoundMem(mopSE);
+	StopSoundMem(climbSE);
 }

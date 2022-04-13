@@ -3,11 +3,12 @@
 #include "player.h"
 #include "enum.h"
 #include "score.h"
+#include "enemy.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 // ウィンドウのタイトルに表示する文字列
-const char WIN_TITLE[] = "";
+const char WIN_TITLE[] = "こびとのそうじめいじん";
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine,
 	_In_ int nCmdShow) {
@@ -28,7 +29,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	SetWindowSizeExtendRate(1.0);
 
 	// 画面の背景色を設定する
-	SetBackgroundColor(0x00, 0x00, 0xff);
+	SetBackgroundColor(0xff, 0xff, 0xff);
 
 	// DXlibの初期化
 	if (DxLib_Init() == -1) { return -1; }
@@ -37,6 +38,21 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	// 画像などのリソースデータの変数宣言と読み込み
+	int titleBGM = LoadSoundMem("resource/sound/title.mp3");
+	ChangeVolumeSoundMem(100, titleBGM);
+	int stageBGM = LoadSoundMem("resource/sound/stage.mp3");
+	ChangeVolumeSoundMem(100, stageBGM);
+	int tutorialBGM = LoadSoundMem("resource/sound/tutorial.mp3");
+	ChangeVolumeSoundMem(100, tutorialBGM);
+	int scoreBGM = LoadSoundMem("resource/sound/score.mp3");
+	ChangeVolumeSoundMem(100, scoreBGM);
+	int selectSE = LoadSoundMem("resource/sound/select.mp3");
+	ChangeVolumeSoundMem(120, selectSE);
+	int cursorSE = LoadSoundMem("resource/sound/cursor.mp3");
+	ChangeVolumeSoundMem(120, cursorSE);
+
+	int titleGH[2];
+	LoadDivGraph("resource/pict/title.png", 2, 2, 1, 1280, 800, titleGH);
 
 	// ゲームループで使う変数の宣言
 	int scene = TITLE;
@@ -50,6 +66,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 	Player player;
 	Screen screen;
 	Score score;
+	Enemy enemy;
+
+
+	bool sound = false;
 
 
 	// 最新のキーボード情報用
@@ -86,9 +106,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 		// 更新処理
 		switch (scene) {
 		case TITLE:
+			StopSoundMem(scoreBGM);
+			if (!CheckSoundMem(titleBGM)) PlaySoundMem(titleBGM, DX_PLAYTYPE_LOOP, true);
+
 			//ゲーム情報のリセット処理
 			if (reset) {
-				player.Reset();
+				player.Reset(scene);
 				gameTimer = gameTime;
 				reset = false;
 				stage = TUTORIAL;
@@ -98,51 +121,109 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 			//上
 			if (keys[KEY_INPUT_UP] && !oldkeys[KEY_INPUT_UP]) {
 				stage--;
-				if (stage <= TUTORIAL) stage = TUTORIAL;
+				if (stage < TUTORIAL) stage = GAME;
+				PlaySoundMem(cursorSE, DX_PLAYTYPE_BACK, true);
 			}
 
 			//下
 			if (keys[KEY_INPUT_DOWN] && !oldkeys[KEY_INPUT_DOWN]) {
 				stage++;
-				if (stage >= GAME) stage = GAME;
+				if (stage > GAME) stage = TUTORIAL;
+				PlaySoundMem(cursorSE, DX_PLAYTYPE_BACK, true);
 			}
 
 			if (keys[KEY_INPUT_SPACE] && !oldkeys[KEY_INPUT_SPACE]) {
-				if (stage == TUTORIAL) scene = TUTORIAL;
-				else if (stage == GAME) scene = GAME;
+				scene = LOAD;
+				reset = true;
+				/*if (stage == TUTORIAL) scene = TUTORIAL;
+				else if (stage == GAME) {
+					reset = true;
+					scene = GAME;
+				}*/
+				PlaySoundMem(selectSE, DX_PLAYTYPE_NORMAL, true);
 			}
 
-			DrawFormatString(0, 0, 0xffffff, "title");
-			DrawFormatString(0, 15, 0xffffff, "%d", stage);
+			//描画
+			if (stage == TUTORIAL) DrawGraph(0, 0, titleGH[0], true);
+			else DrawGraph(0, 0, titleGH[1], true);
+
+			/*DrawFormatString(0, 0, 0xffffff, "こびとのそうじめいじん");
+			if (stage == TUTORIAL)DrawFormatString(0, 15, 0xffffff, "チュートリアル");
+			else if (stage == GAME) DrawFormatString(0, 15, 0xffffff, "ゲーム");
+			DrawFormatString(0, 30, 0xffffff, "↑↓で移動 : spaceで決定");*/
 			break;
 		case TUTORIAL:
+			if (!CheckSoundMem(tutorialBGM)) PlaySoundMem(tutorialBGM, DX_PLAYTYPE_LOOP, true);
+			//Tキーを押したらgameスタート
+			if (keys[KEY_INPUT_T] && !oldkeys[KEY_INPUT_T]) {
+				scene = LOAD;
+				stage = GAME;
+				reset = true;
+			}
+
+			screen.Background(player.scrollX, player.scrollY);
+			
+			player.Tutorial(keys, oldkeys, screen.tutorialScene);
+
+			player.Sound(keys, oldkeys);
+
+			screen.ScoreDraw(player.score);
+
+			screen.TutorialAniGH(keys, oldkeys);
+
 
 			break;
 		case GAME:
-			player.Option(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
+
+			if (!CheckSoundMem(stageBGM)) PlaySoundMem(stageBGM, DX_PLAYTYPE_LOOP, true);
+
+			if (reset) {
+				player.Reset(scene);
+				reset = false;
+			}
+			
 
 			gameTimer--;
 			if (gameTimer < 0) scene = SCORE;
 
 			//描画
-			screen.Background(player.scrollX, player.scrollY);
+			screen.Background(player.scrollX, player.scrollY); 
+			
+			player.Option(keys, oldkeys, scene);
 
-			player.Draw(keys, oldkeys, mouse, oldMouse, mouseX, mouseY);
+			player.Draw(keys, oldkeys);
 
 			screen.ScoreDraw(player.score);
 
 			screen.TimerDraw(gameTimer);
 
+			player.Sound(keys, oldkeys);
+
 			break;
 		case SCORE:
+			StopSoundMem(stageBGM);
+			player.SoundStop();
+			if (!CheckSoundMem(scoreBGM) && !sound) {
+				PlaySoundMem(scoreBGM, DX_PLAYTYPE_BACK, true);
+				sound = true;
+			}
 			//ゲームが終了したらリセットフラグを立てる
 			score.Ranking(player.score);
 
 			reset = true;
-			if (keys[KEY_INPUT_SPACE] && !oldkeys[KEY_INPUT_SPACE]) scene = TITLE;
+			if (keys[KEY_INPUT_SPACE] && !oldkeys[KEY_INPUT_SPACE]) {
+				scene = TITLE;
+				sound = false;
+			}
 
-			DrawFormatString(0, 0, 0xffffff, "score");
+			/*DrawFormatString(0, 0, 0xffffff, "score");
+			DrawFormatString(0, 15, 0xffffff, "spaceでタイトル");*/
 			break;
+		case LOAD:
+			StopSoundMem(titleBGM);
+			StopSoundMem(tutorialBGM);
+			player.SoundStop();
+			screen.Load(scene, stage);
 		}
 
 		//確認

@@ -5,7 +5,14 @@
 Score::Score() {
 	rfp = NULL;
 	wfp = NULL;
+	backX = 0;
+	backY = 0;
+	scoreNum.sizeX = 48;
+	scoreNum.sizeY = 115;
+	scoreNum.x = 520;
+	scoreNum.y = 440;
 	LoadDivGraph("resource/pict/scorenum.png", 10, 10, 1, 48, 48, numberGH);
+	backGH = LoadGraph("resource/pict/score.png");
 }
 
 void Score::Ranking(int score){
@@ -48,21 +55,30 @@ void Score::Ranking(int score){
 	fclose(wfp);// 閉じる
 
 	//スコアランキング描画
+	sprintf_s(strNumSave, sizeof(strNumSave1), "%05d", score);
 	sprintf_s(strNumSave1, sizeof(strNumSave1), "%05d", arr[0]);
 	sprintf_s(strNumSave2, sizeof(strNumSave2), "%05d", arr[1]);
 	sprintf_s(strNumSave3, sizeof(strNumSave3), "%05d", arr[2]);
 
 	//オフセット値に合わせる
 	for (int i = 0; i < digits; i++) {
+		eachNumSave[i] = strNumSave[i] - 48;
 		eachNumSave1[i] = strNumSave1[i] - 48;
 		eachNumSave2[i] = strNumSave2[i] - 48;
 		eachNumSave3[i] = strNumSave3[i] - 48;
 	}
 
-	//スコア
+	//描画
+	DrawGraph(backX, backY, backGH, true);
+
 	for (int i = 0; i < digits; i++) {
-		DrawGraph(48 * i + 700, 515, numberGH[eachNumSave1[i]], true);
-		DrawGraph(48 * i + 700, 570, numberGH[eachNumSave2[i]], true);
-		DrawGraph(48 * i + 700, 625, numberGH[eachNumSave3[i]], true);
+		//ゲームスコア
+		DrawGraph(scoreNum.x + i * scoreNum.sizeX, 330, numberGH[eachNumSave[i]], true);
+
+		//スコアランキング
+		DrawGraph(scoreNum.x + i * scoreNum.sizeX, scoreNum.y, numberGH[eachNumSave1[i]], true);
+		DrawGraph(scoreNum.x + i * scoreNum.sizeX, scoreNum.y + scoreNum.sizeY, numberGH[eachNumSave2[i]], true);
+		DrawGraph(scoreNum.x + i * scoreNum.sizeX, scoreNum.y + scoreNum.sizeY * 2, numberGH[eachNumSave3[i]], true);
 	}
+	
 }

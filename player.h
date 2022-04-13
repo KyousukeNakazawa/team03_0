@@ -2,6 +2,8 @@
 #include "screen.h"
 #include "item.h"
 #include "object.h"
+#include "enemy.h"
+
 
 class Player {
 public:
@@ -9,12 +11,24 @@ public:
 	TransForm player;
 	float spdX;
 	float spdY;
-	int cleanTimer;
-	const int cleanTime = 150;
 	bool fallFlag;
+	bool hideFlag;
 
-	int playerGH;
+	int spawnType;
+	bool spawnFlag;
 
+	AniGHTimer playerMove = { 4, 40, 0 };
+	int playerRightGH[4];
+	int playerLeftGH[4];
+	int playerFallRightGH[4];
+	int playerFallLeftGH[4];
+	int playerClimbGH[4];
+	int playerHoukiGH[4];
+	int playerMopGH[4];
+	int playerWaitGH[4];
+	//int playerGH;
+
+	void PlayerAniGH(char* keys, char* oldkeys);
 	//スコア
 	int score;
 
@@ -40,6 +54,20 @@ public:
 	void ItemTrash(char* keys, char* oldkeys);
 	void PlayerFall();
 
+	//エネミー
+	Enemy* enemy;
+	void RoombaCollision(Object rumba);
+
+	//音
+	int walkSE;
+	int houkiSE;
+	int mopSE;
+	int trashPointSE;
+	int cleanPointSE;
+	int climbSE;
+
+
+
 public:
 	//スクロール
 	float scrollX;
@@ -48,9 +76,10 @@ public:
 	Player();
 	~Player();
 
-	void Tutorial(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
-	void Option(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
-	void Draw(char* keys, char* oldkeys, int& mouse, int& oldMouse, int& mouseX, int& mouseY);
-
-	void Reset();
+	void Tutorial(char* keys, char* oldkeys, int& tutorialScene);
+	void Option(char* keys, char* oldkeys, int& scene);
+	void Draw(char* keys, char* oldkeys);
+	void Sound(char* keys, char* oldkeys);
+	void SoundStop();
+	void Reset(int scene);
 };

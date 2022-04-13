@@ -89,28 +89,6 @@ Item::Item() {
 	LoadDivGraph("resource/pict/gomi/gomi1.png", 8, 4, 4, 64, 64, gomi1GH);
 	LoadDivGraph("resource/pict/gomi/gomi2.png", 3, 3, 1, 32, 96, gomi2GH);
 	LoadDivGraph("resource/pict/tool/tool1.png", 2, 2, 1, 32, 96, tool2GH);
-
-	//初期配置
-	for (int i = 1; i <= 8; i++) {
-		while (gomi1Type[i - 1] != i) {
-			gomi1Y[i - 1] = WOR_HEIGHT - gomi1SizeY;
-			//乱数でスポーン場所を決め重なっていなければスポーン
-			gomi1X[i - 1] = SpawnSpaceSearch(gomi1Y[i - 1], i);
-			if (gomi1X[i - 1] != -1) {
-				gomi1Type[i - 1] = i;
-			}
-		}
-	}
-	for (int i = 0; i <= 2; i++) {
-		while (gomi2Type[i] != i + 9) {
-			gomi2Y[i] = WOR_HEIGHT - gomi2SizeY;
-			//乱数でスポーン場所を決め重なっていなければスポーン
-			gomi2X[i] = SpawnSpaceSearch(gomi2Y[i], i + 9);
-			if (gomi2X[i] != -1) {
-				gomi2Type[i] = i + 9;
-			}
-		}
-	}
 }
 
 Item::~Item() {
@@ -136,7 +114,9 @@ void Item::Reset() {
 	}
 
 	blendNum = 255;
+}
 
+void Item::Spawn() {
 	//初期配置
 	for (int i = 1; i <= 8; i++) {
 		while (gomi1Type[i - 1] != i) {
@@ -157,6 +137,38 @@ void Item::Reset() {
 				gomi2Type[i] = i + 9;
 			}
 		}
+	}
+}
+
+void Item::Tutorial(int scene) {
+	//プレイヤーの動きに合わせて変化
+	switch (scene) {
+	case 0:
+		for (int i = 0; i < 3; i++) {
+			gomi1Type[i] = 3 + i * 4;
+			gomi1X[i] = 300 + 100 * i;
+			gomi1Y[i] = WOR_HEIGHT - gomi1SizeY;
+		}
+		gomi1Type[2] = WAGOMU;
+		break;
+	default:
+		for (int i = 0; i < 7; i++) {
+			gomi1Type[i] = i + 1;
+			gomi1X[i] = 400 + 100 * i;
+			gomi1Y[i] = WOR_HEIGHT - gomi1SizeY;
+		}
+		gomi1Type[3] = HOKORI;
+		gomi1Type[4] = NUNO;
+		gomi1Type[5] = WAGOMU;
+		gomi1Type[6] = NUNO;
+
+		gomi2Type[0] = TUMAYOUZI;
+		gomi2X[0] = 300;
+		gomi2Y[0] = WOR_HEIGHT - gomi2SizeY;
+		gomi2Type[1] = ENPITU;
+		gomi2X[1] = 350;
+		gomi2Y[1] = WOR_HEIGHT - gomi2SizeY;
+		break;
 	}
 }
 
